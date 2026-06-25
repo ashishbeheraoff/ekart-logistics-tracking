@@ -35,9 +35,7 @@ async function ensureSchema(db, type) {
   for (const stmt of stmts) {
     try {
       if (type === 'netlify') {
-        let s = stmt;
-        if (s.includes('SERIAL PRIMARY KEY')) s = s.replace(/SERIAL PRIMARY KEY/g, 'INTEGER PRIMARY KEY AUTOINCREMENT');
-        await db.sql.unsafe(s);
+        await db.sql.unsafe(stmt);
       } else {
         let s = stmt;
         s = s.replace(/SERIAL PRIMARY KEY/g, 'INTEGER PRIMARY KEY AUTOINCREMENT');
