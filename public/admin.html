@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ekart Logistics - Admin Panel</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <div class="logo-icon">E</div>
+        <div class="logo-text">
+          <h1>Ekart Logistics</h1>
+          <span>Admin Panel</span>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">Track Shipment</a>
+        <a href="/admin.html">Admin</a>
+        <a href="#" id="logoutBtn" style="display:none">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="admin-container">
+    <!-- Login Section -->
+    <div id="loginSection" class="page-section active">
+      <div class="admin-login">
+        <div class="card">
+          <h2>Admin Login</h2>
+          <div id="loginAlert" class="alert"></div>
+          <form id="loginForm">
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="loginUsername" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" id="loginPassword" class="form-input" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Sign In</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboardSection" class="page-section">
+      <div class="admin-header">
+        <h2>Dashboard</h2>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-success btn-sm" onclick="showCreateModal()">+ New LR</button>
+          <button class="btn btn-outline btn-sm" onclick="loadDashboard()">Refresh</button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <div class="card">
+        <div class="card-title">All Consignments</div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>LR No.</th>
+                <th>Origin</th>
+                <th>Destination</th>
+                <th>Status</th>
+                <th>Current Location</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="lrTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create LR Modal -->
+  <div id="createModal" class="modal-overlay">
+    <div class="modal">
+      <h3>Create New LR</h3>
+      <div id="createAlert" class="alert"></div>
+      <form id="createForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Sender Name</label>
+            <input type="text" id="cSender" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Sender Phone</label>
+            <input type="text" id="cSenderPhone" class="form-input">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Sender Address</label>
+          <input type="text" id="cSenderAddr" class="form-input">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Receiver Name</label>
+            <input type="text" id="cReceiver" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Receiver Phone</label>
+            <input type="text" id="cReceiverPhone" class="form-input">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Receiver Address</label>
+          <input type="text" id="cReceiverAddr" class="form-input">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Origin *</label>
+            <input type="text" id="cOrigin" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label>Destination *</label>
+            <input type="text" id="cDestination" class="form-input" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Package Description</label>
+            <input type="text" id="cPackage" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Weight</label>
+            <input type="text" id="cWeight" class="form-input" placeholder="e.g. 5 kg">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Current Location</label>
+            <input type="text" id="cLocation" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Est. Delivery</label>
+            <input type="date" id="cEstDelivery" class="form-input">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeModal('createModal')">Cancel</button>
+          <button type="submit" class="btn btn-success">Create LR</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit LR Modal -->
+  <div id="editModal" class="modal-overlay">
+    <div class="modal">
+      <h3>Update Consignment</h3>
+      <div id="editAlert" class="alert"></div>
+      <form id="editForm">
+        <input type="hidden" id="eId">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Status</label>
+            <select id="eStatus" class="form-input">
+              <option value="Booked">Booked</option>
+              <option value="In Transit">In Transit</option>
+              <option value="Out for Delivery">Out for Delivery</option>
+              <option value="Delivered">Delivered</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Current Location</label>
+            <input type="text" id="eLocation" class="form-input">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Update Description</label>
+          <input type="text" id="eDescription" class="form-input" placeholder="e.g. Shipment arrived at hub">
+        </div>
+        <hr style="margin:16px 0;border:none;border-top:1px solid var(--gray-200)">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Sender Name</label>
+            <input type="text" id="eSender" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Receiver Name</label>
+            <input type="text" id="eReceiver" class="form-input">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Origin</label>
+            <input type="text" id="eOrigin" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Destination</label>
+            <input type="text" id="eDestination" class="form-input">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Package Description</label>
+            <input type="text" id="ePackage" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Est. Delivery</label>
+            <input type="date" id="eEstDelivery" class="form-input">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger btn-sm" id="deleteBtn" onclick="deleteLR()">Delete</button>
+          <button type="button" class="btn btn-outline" onclick="closeModal('editModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/admin';
+    let token = localStorage.getItem('ekart_admin_token');
+
+    async function api(path, opts = {}) {
+      const headers = { 'Content-Type': 'application/json', ...opts.headers };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${API}${path}`, { ...opts, headers });
+      if (res.status === 401) { logout(); throw new Error('Session expired'); }
+      return res.json();
+    }
+
+    function showSection(id) {
+      document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      document.getElementById('logoutBtn').style.display = token ? 'inline' : 'none';
+    }
+
+    async function login(e) {
+      e.preventDefault();
+      const alert = document.getElementById('loginAlert');
+      const username = document.getElementById('loginUsername').value;
+      const password = document.getElementById('loginPassword').value;
+      try {
+        const data = await api('/login', {
+          method: 'POST',
+          body: JSON.stringify({ username, password }),
+        });
+        if (data.success) {
+          token = data.token;
+          localStorage.setItem('ekart_admin_token', token);
+          showSection('dashboardSection');
+          loadDashboard();
+        } else {
+          alert.textContent = data.error || 'Login failed';
+          alert.className = 'alert alert-error';
+        }
+      } catch (e) {
+        alert.textContent = 'Login failed';
+        alert.className = 'alert alert-error';
+      }
+    }
+
+    function logout() {
+      token = null;
+      localStorage.removeItem('ekart_admin_token');
+      showSection('loginSection');
+    }
+
+    function statusClass(s) {
+      if (!s) return '';
+      return s.toLowerCase().replace(/\s+/g, '-');
+    }
+
+    async function loadDashboard() {
+      try {
+        const [lrData, statsData] = await Promise.all([
+          api('/lr'),
+          api('/stats'),
+        ]);
+        renderStats(statsData);
+        renderTable(lrData.consignments || []);
+      } catch { showToast('Failed to load dashboard', 'error'); }
+    }
+
+    function renderStats(s) {
+      document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card"><div class="stat-value">${s.total || 0}</div><div class="stat-label">Total</div></div>
+        <div class="stat-card"><div class="stat-value">${s.booked || 0}</div><div class="stat-label">Booked</div></div>
+        <div class="stat-card"><div class="stat-value">${s.inTransit || 0}</div><div class="stat-label">In Transit</div></div>
+        <div class="stat-card"><div class="stat-value">${s.outForDelivery || 0}</div><div class="stat-label">Out for Delivery</div></div>
+        <div class="stat-card"><div class="stat-value">${s.delivered || 0}</div><div class="stat-label">Delivered</div></div>
+      `;
+    }
+
+    function renderTable(entries) {
+      const tbody = document.getElementById('lrTableBody');
+      tbody.innerHTML = entries.map(e => `
+        <tr>
+          <td><strong>${e.lr_number}</strong></td>
+          <td>${e.origin}</td>
+          <td>${e.destination}</td>
+          <td><span class="status-badge ${statusClass(e.status)}">${e.status}</span></td>
+          <td>${e.current_location || '-'}</td>
+          <td>
+            <div class="action-btns">
+              <button class="btn btn-primary btn-sm" onclick="editLR(${e.id})">Update</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('show');
+    }
+
+    function showCreateModal() {
+      document.getElementById('createAlert').className = 'alert';
+      document.getElementById('createForm').reset();
+      document.getElementById('createModal').classList.add('show');
+    }
+
+    document.getElementById('createForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alert = document.getElementById('createAlert');
+      const body = {
+        sender_name: document.getElementById('cSender').value,
+        sender_phone: document.getElementById('cSenderPhone').value,
+        sender_address: document.getElementById('cSenderAddr').value,
+        receiver_name: document.getElementById('cReceiver').value,
+        receiver_phone: document.getElementById('cReceiverPhone').value,
+        receiver_address: document.getElementById('cReceiverAddr').value,
+        origin: document.getElementById('cOrigin').value,
+        destination: document.getElementById('cDestination').value,
+        package_desc: document.getElementById('cPackage').value,
+        weight: document.getElementById('cWeight').value,
+        current_location: document.getElementById('cLocation').value || document.getElementById('cOrigin').value,
+        estimated_delivery: document.getElementById('cEstDelivery').value,
+      };
+      try {
+        const data = await api('/lr', { method: 'POST', body: JSON.stringify(body) });
+        if (data.success) {
+          closeModal('createModal');
+          showToast(`LR ${data.consignment.lr_number} created`, 'success');
+          loadDashboard();
+        } else {
+          alert.textContent = data.error || 'Creation failed';
+          alert.className = 'alert alert-error';
+        }
+      } catch { showToast('Failed to create LR', 'error'); }
+    });
+
+    async function editLR(id) {
+      const alert = document.getElementById('editAlert');
+      alert.className = 'alert';
+      try {
+        const data = await api(`/lr/${id}`);
+        const c = data.consignment;
+        document.getElementById('eId').value = c.id;
+        document.getElementById('eStatus').value = c.status;
+        document.getElementById('eLocation').value = c.current_location || '';
+        document.getElementById('eDescription').value = '';
+        document.getElementById('eSender').value = c.sender_name || '';
+        document.getElementById('eReceiver').value = c.receiver_name || '';
+        document.getElementById('eOrigin').value = c.origin || '';
+        document.getElementById('eDestination').value = c.destination || '';
+        document.getElementById('ePackage').value = c.package_desc || '';
+        document.getElementById('eEstDelivery').value = c.estimated_delivery ? c.estimated_delivery.split('T')[0] : '';
+        document.getElementById('editModal').classList.add('show');
+      } catch { showToast('Failed to load consignment', 'error'); }
+    }
+
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alert = document.getElementById('editAlert');
+      const id = document.getElementById('eId').value;
+      const body = {
+        status: document.getElementById('eStatus').value,
+        current_location: document.getElementById('eLocation').value,
+        description: document.getElementById('eDescription').value,
+        sender_name: document.getElementById('eSender').value,
+        receiver_name: document.getElementById('eReceiver').value,
+        origin: document.getElementById('eOrigin').value,
+        destination: document.getElementById('eDestination').value,
+        package_desc: document.getElementById('ePackage').value,
+        estimated_delivery: document.getElementById('eEstDelivery').value,
+        lr_number: '',
+      };
+      try {
+        const data = await api(`/lr/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+        if (data.success) {
+          closeModal('editModal');
+          showToast('Consignment updated', 'success');
+          loadDashboard();
+        } else {
+          alert.textContent = data.error || 'Update failed';
+          alert.className = 'alert alert-error';
+        }
+      } catch { showToast('Failed to update', 'error'); }
+    });
+
+    async function deleteLR() {
+      if (!confirm('Delete this consignment permanently?')) return;
+      const id = document.getElementById('eId').value;
+      try {
+        await api(`/lr/${id}`, { method: 'DELETE' });
+        closeModal('editModal');
+        showToast('Deleted successfully', 'success');
+        loadDashboard();
+      } catch { showToast('Failed to delete', 'error'); }
+    }
+
+    function showToast(msg, type = 'success') {
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', login);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    document.querySelectorAll('.modal-overlay').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target === el) el.classList.remove('show');
+      });
+    });
+
+    if (token) {
+      showSection('dashboardSection');
+      loadDashboard();
+    }
+  </script>
+</body>
+</html>

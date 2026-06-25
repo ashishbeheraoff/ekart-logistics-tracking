@@ -1,0 +1,11 @@
+{
+  "name": "ekart-logistics",
+  "version": "1.0.0",
+  "description": "Ekart Logistics Tracking System",
+  "scripts": {
+    "dev": "netlify dev",
+    "seed": "node data/seed.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

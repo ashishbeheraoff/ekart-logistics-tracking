@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ekart Logistics - Track Your Shipment</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <div class="logo-icon">E</div>
+        <div class="logo-text">
+          <h1>Ekart Logistics</h1>
+          <span>Safe &amp; Reliable Delivery</span>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">Track Shipment</a>
+        <a href="/admin.html">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="tracking-hero">
+    <h2>Track Your Shipment</h2>
+    <p>Enter your LR number to track your consignment in real-time</p>
+
+    <form id="trackingForm" class="tracking-form" autocomplete="off">
+      <div id="formAlert" class="alert"></div>
+
+      <div class="form-group">
+        <label for="lrNumber">LR Number</label>
+        <input type="text" id="lrNumber" class="form-input" placeholder="e.g. EKT-2024-001" required>
+      </div>
+
+      <div class="form-group">
+        <label>Security Check</label>
+        <div class="captcha-row">
+          <div id="captchaQuestion" class="captcha-question">Loading...</div>
+          <input type="text" id="captchaAnswer" class="form-input" placeholder="Your answer" style="flex:1" required>
+          <input type="hidden" id="captchaToken">
+        </div>
+      </div>
+
+      <button type="submit" id="trackBtn" class="btn btn-primary">
+        <span class="btn-text">Track Shipment</span>
+        <div class="spinner"></div>
+      </button>
+    </form>
+  </section>
+
+  <div class="container">
+    <div id="trackingResult" class="tracking-result">
+      <div class="card">
+        <div class="card-title">Consignment Details</div>
+        <div class="consignment-details" id="consignmentDetails"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Tracking Timeline</div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/tracking';
+    let captchaData = {};
+
+    async function loadCaptcha() {
+      try {
+        const res = await fetch(`${API}/captcha`);
+        const data = await res.json();
+        captchaData = data.captcha;
+        document.getElementById('captchaQuestion').textContent = data.captcha.question;
+        document.getElementById('captchaToken').value = data.captcha.token;
+        document.getElementById('captchaAnswer').value = '';
+      } catch {
+        document.getElementById('captchaQuestion').textContent = 'Click to retry';
+      }
+    }
+
+    document.getElementById('trackingForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formAlert = document.getElementById('formAlert');
+      const btn = document.getElementById('trackBtn');
+      const result = document.getElementById('trackingResult');
+      formAlert.className = 'alert';
+      formAlert.style.display = 'none';
+      result.classList.remove('show');
+
+      const lr = document.getElementById('lrNumber').value.trim();
+      const answer = document.getElementById('captchaAnswer').value.trim();
+      const token = document.getElementById('captchaToken').value;
+
+      if (!lr) {
+        showError('Please enter an LR number');
+        return;
+      }
+      if (!answer) {
+        showError('Please solve the security check');
+        return;
+      }
+
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API}/track`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lr_number: lr, captcha_answer: answer, captcha_token: token }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.error || 'Tracking failed');
+          return;
+        }
+
+        displayResult(data);
+      } catch {
+        showError('Network error. Please try again.');
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        loadCaptcha();
+      }
+    });
+
+    function showError(msg) {
+      const el = document.getElementById('formAlert');
+      el.textContent = msg;
+      el.className = 'alert alert-error';
+      el.style.display = 'block';
+    }
+
+    function formatDate(d) {
+      if (!d) return '-';
+      const dt = new Date(d + ' UTC');
+      return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' +
+             dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function statusClass(s) {
+      if (!s) return '';
+      return s.toLowerCase().replace(/\s+/g, '-');
+    }
+
+    function displayResult(data) {
+      const c = data.consignment;
+      const details = document.getElementById('consignmentDetails');
+      const timeline = document.getElementById('timeline');
+      const result = document.getElementById('trackingResult');
+
+      const fields = [
+        { label: 'LR Number', value: c.lr_number },
+        { label: 'Status', value: `<span class="status-badge ${statusClass(c.status)}">${c.status}</span>` },
+        { label: 'Origin', value: c.origin },
+        { label: 'Destination', value: c.destination },
+        { label: 'Current Location', value: c.current_location || '-' },
+        { label: 'Estimated Delivery', value: c.estimated_delivery ? formatDate(c.estimated_delivery) : '-' },
+        { label: 'Sender', value: c.sender_name || '-' },
+        { label: 'Receiver', value: c.receiver_name || '-' },
+        { label: 'Package', value: c.package_desc || '-' },
+        { label: 'Weight', value: c.weight || '-' },
+      ];
+      details.innerHTML = fields.map(f =>
+        `<div class="detail-group">
+          <div class="detail-label">${f.label}</div>
+          <div class="detail-value ${f.label === 'Status' ? 'highlight' : ''}">${f.value}</div>
+        </div>`
+      ).join('');
+
+      const updates = data.tracking_updates || [];
+      timeline.innerHTML = updates.map((u, i) => {
+        const isLast = i === updates.length - 1;
+        const cls = isLast ? 'active current' : '';
+        return `<div class="timeline-item ${cls} ${statusClass(u.status)}">
+          <div class="timeline-dot"></div>
+          <div class="timeline-status">${u.status}</div>
+          <div class="timeline-location">${u.location}</div>
+          <div class="timeline-desc">${u.description || ''}</div>
+          <div class="timeline-time">${formatDate(u.timestamp)}</div>
+        </div>`;
+      }).join('');
+
+      result.classList.add('show');
+      result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    loadCaptcha();
+  </script>
+</body>
+</html>
