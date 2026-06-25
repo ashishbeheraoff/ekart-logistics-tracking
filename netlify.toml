@@ -2,6 +2,9 @@
   functions = "netlify/functions"
   publish = "public"
 
+[build.environment]
+  NETLIFY_DB_URL = "postgresql://netlifydb_owner:npg_Qj0bIAg5RxMC@ep-aged-forest-ajlyudoc.c-3.us-east-2.db.netlify.com/netlifydb?sslmode=require"
+
 [[redirects]]
   from = "/api/tracking"
   to = "/.netlify/functions/tracking"
