@@ -1,28 +1,22 @@
-const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const crypto = require('crypto');
 
-const DB_PATH = path.join(os.tmpdir(), 'ekart.db');
 const SCHEMA_PATH = path.join(__dirname, '../../data/schema.sql');
 const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET || 'ekart-captcha-secret-2024';
 
-let db = null;
+let dbPromise = null;
 
-function getDb() {
-  if (db) {
-    try { db.prepare('SELECT 1').get(); return db; }
-    catch { db = null; }
-  }
-  if (fs.existsSync(DB_PATH)) {
-    db = new DatabaseSync(DB_PATH);
-  } else {
-    db = new DatabaseSync(DB_PATH);
-    db.exec(fs.readFileSync(SCHEMA_PATH, 'utf8'));
-  }
-  db.exec('PRAGMA journal_mode=WAL');
-  return db;
+async function getDb() {
+  if (dbPromise) return dbPromise;
+  dbPromise = (async () => {
+    const { getDatabase } = require('@netlify/database');
+    const db = getDatabase();
+    const sql = fs.readFileSync(SCHEMA_PATH, 'utf8');
+    await db.sql.unsafe(sql);
+    return db;
+  })();
+  return dbPromise;
 }
 
 function generateCaptcha() {
@@ -64,7 +58,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const d = getDb();
+    const db = await getDb();
     const p = event.path.replace(/^\/api\/tracking/, '').replace(/^\/\.netlify\/functions\/tracking/, '');
 
     if (event.httpMethod === 'GET' && (p === '' || p === '/captcha')) {
@@ -83,14 +77,16 @@ exports.handler = async (event) => {
         return json({ error: 'Invalid captcha answer. Please try again.' }, 400);
       }
 
-      const entry = d.prepare('SELECT * FROM lr_entries WHERE lr_number = ?').get(lr_number.toUpperCase());
-      if (!entry) {
+      const entries = await db.sql`SELECT * FROM lr_entries WHERE lr_number = ${lr_number.toUpperCase()}`;
+      if (!entries || entries.length === 0) {
         return json({ error: 'No shipment found with LR Number: ' + lr_number.toUpperCase() }, 404);
       }
 
-      const updates = d.prepare('SELECT * FROM tracking_updates WHERE lr_number = ? ORDER BY timestamp ASC').all(lr_number.toUpperCase());
+      const updates = await db.sql`
+        SELECT * FROM tracking_updates WHERE lr_number = ${lr_number.toUpperCase()} ORDER BY timestamp ASC
+      `;
 
-      return json({ success: true, consignment: entry, tracking_updates: updates });
+      return json({ success: true, consignment: entries[0], tracking_updates: updates });
     }
 
     return json({ error: 'Not found' }, 404);

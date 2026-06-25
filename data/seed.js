@@ -1,7 +1,13 @@
-const { DatabaseSync } = require('node:sqlite');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
+const { getDatabase } = require('@netlify/database');
 
-const db = new DatabaseSync(path.join(__dirname, 'ekart.db'));
-db.exec(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
-console.log('Database seeded successfully');
+async function main() {
+  const db = getDatabase({ debug: true });
+  const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+  await db.sql.unsafe(sql);
+  const count = await db.sql`SELECT COUNT(*) as cnt FROM lr_entries`;
+  console.log(`Database seeded. LR entries: ${count[0].cnt}`);
+}
+
+main().catch(console.error);
