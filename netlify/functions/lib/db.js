@@ -1,3 +1,4 @@
+const path = require('path');
 const os = require('os');
 
 const SCHEMA_SQL = `CREATE TABLE IF NOT EXISTS admin_users (
