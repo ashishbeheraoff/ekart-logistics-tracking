@@ -122,7 +122,9 @@ async function getDb() {
     }
   }
 
-  throw new Error('No database driver available');
+  const nodeVer = process.version;
+  const hasSqlite = (() => { try { require('node:sqlite'); return true; } catch { return false; } })();
+  throw new Error(`No database driver available (Node ${nodeVer}, NETLIFY_DB_URL=${!!process.env.NETLIFY_DB_URL}, node:sqlite=${hasSqlite})`);
 }
 
 module.exports = { getDb };
