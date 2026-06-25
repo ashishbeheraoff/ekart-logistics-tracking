@@ -160,12 +160,13 @@ function convertParams(sql, params) {
 async function getDb() {
   if (driver) return driver;
 
+  const errors = [];
   const driverTypes = ['@netlify/database', 'node:sqlite', 'better-sqlite3'];
 
   for (const driverType of driverTypes) {
     try {
       if (driverType === '@netlify/database') {
-        if (!process.env.NETLIFY_DB_URL) continue;
+        if (!process.env.NETLIFY_DB_URL) { errors.push('@netlify/database: NETLIFY_DB_URL not set'); continue; }
         const { getDatabase } = require('@netlify/database');
         const d = getDatabase();
         await ensureSchema(d, 'netlify');
@@ -209,14 +210,11 @@ async function getDb() {
         return driver;
       }
     } catch (e) {
-      console.error(`Driver ${driverType} failed:`, e.message);
+      errors.push(`${driverType}: ${e.message}`);
     }
   }
 
-  const nodeVer = process.version;
-  const hasNodeSqlite = (() => { try { require('node:sqlite'); return true; } catch { return false; } })();
-  const hasBetterSqlite = (() => { try { require('better-sqlite3'); return true; } catch { return false; } })();
-  throw new Error(`No database driver available (Node ${nodeVer}, NETLIFY_DB_URL=${!!process.env.NETLIFY_DB_URL}, node:sqlite=${hasNodeSqlite}, better-sqlite3=${hasBetterSqlite})`);
+  throw new Error(`No database driver available (${errors.join('; ')})`);
 }
 
 function createSqliteDriver(db) {
