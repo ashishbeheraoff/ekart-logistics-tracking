@@ -222,7 +222,7 @@ function createSqliteDriver(db) {
   return {
     all(q, params) {
       const stmt = db.prepare(q);
-      if (params) stmt.bind(...params);
+      stmt.run(...(params || []));
       const rows = [];
       while (stmt.step()) rows.push(stmt.getAsObject());
       stmt.free();
@@ -230,14 +230,14 @@ function createSqliteDriver(db) {
     },
     get(q, params) {
       const stmt = db.prepare(q + ' LIMIT 1');
-      if (params) stmt.bind(...params);
+      stmt.run(...(params || []));
       let row = null;
       if (stmt.step()) row = stmt.getAsObject();
       stmt.free();
       return row || null;
     },
     run(q, params) {
-      if (params) { const stmt = db.prepare(q); stmt.bind(...params); stmt.step(); stmt.free(); }
+      if (params) { const stmt = db.prepare(q); stmt.run(...params); stmt.free(); }
       else { db.exec(q); }
     },
   };
