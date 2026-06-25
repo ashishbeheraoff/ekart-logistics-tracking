@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const SCHEMA_PATH = path.join(__dirname, '../../../data/schema.sql');
+const SCHEMA_PATH = path.join(__dirname, '../schema.sql');
 const DB_PATH = path.join(os.tmpdir(), 'ekart.db');
 
 let driver = null;
