@@ -2,6 +2,9 @@
   functions = "netlify/functions"
   publish = "public"
 
+[functions]
+  nodeVersion = "22"
+
 [[redirects]]
   from = "/api/tracking"
   to = "/.netlify/functions/tracking"
