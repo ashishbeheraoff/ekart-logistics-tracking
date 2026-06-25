@@ -113,9 +113,15 @@ exports.handler = async (event) => {
       if (!body || !body.origin || !body.destination) {
         return json({ error: 'Origin and destination are required' }, 400);
       }
-      const countResult = await db.get('SELECT COUNT(*) as cnt FROM lr_entries');
-      const count = Number(countResult.cnt) + 1;
-      const lr_number = `EKT-${new Date().getFullYear()}-${String(count).padStart(3, '0')}`;
+      let lr_number = (body.lr_number || '').trim().toUpperCase();
+      if (!lr_number) {
+        const countResult = await db.get('SELECT COUNT(*) as cnt FROM lr_entries');
+        const count = Number(countResult.cnt) + 1;
+        lr_number = `EKT-${new Date().getFullYear()}-${String(count).padStart(3, '0')}`;
+      } else {
+        const exists = await db.get('SELECT 1 FROM lr_entries WHERE lr_number = ?', [lr_number]);
+        if (exists) return json({ error: 'LR number already exists: ' + lr_number }, 409);
+      }
 
       await db.run(`INSERT INTO lr_entries 
         (lr_number, sender_name, sender_address, sender_phone, receiver_name, receiver_address, receiver_phone, origin, destination, package_desc, weight, status, current_location, estimated_delivery)

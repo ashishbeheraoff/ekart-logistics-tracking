@@ -40,7 +40,7 @@
         <label>Security Check</label>
         <div class="captcha-row">
           <div id="captchaQuestion" class="captcha-question">Loading...</div>
-          <input type="text" id="captchaAnswer" class="form-input" placeholder="Your answer" style="flex:1" required>
+          <input type="text" id="captchaAnswer" class="form-input" placeholder="Type the code above" style="flex:1;text-transform:uppercase" required>
           <input type="hidden" id="captchaToken">
         </div>
       </div>
@@ -140,7 +140,8 @@
 
     function formatDate(d) {
       if (!d) return '-';
-      const dt = new Date(d + ' UTC');
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return '-';
       return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' +
              dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
     }

@@ -141,11 +141,15 @@ body {
 .captcha-question {
   flex: 1;
   padding: 10px 14px;
-  background: var(--gray-100);
+  background: #1a202c;
   border-radius: 6px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--gray-700);
+  font-size: 22px;
+  font-weight: 700;
+  color: #68d391;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  letter-spacing: 6px;
+  user-select: none;
 }
 
 .btn {
@@ -303,6 +307,7 @@ body {
 }
 
 .status-badge.booked { background: #bee3f8; color: #2b6cb0; }
+.status-badge.picked-up { background: #e9d8fd; color: #6b46c1; }
 .status-badge.in-transit { background: #fefcbf; color: #975a16; }
 .status-badge.out-for-delivery { background: #fed7d7; color: #c53030; }
 .status-badge.delivered { background: #c6f6d5; color: #276749; }

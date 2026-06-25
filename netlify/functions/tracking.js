@@ -4,18 +4,18 @@ const { getDb } = require('./lib/db');
 const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET || 'ekart-captcha-secret-2024';
 
 function generateCaptcha() {
-  const a = Math.floor(Math.random() * 20) + 5;
-  const b = Math.floor(Math.random() * 20) + 5;
-  const op = Math.random() > 0.5 ? '+' : '*';
-  const answer = op === '+' ? a + b : a * b;
-  const question = `What is ${a} ${op} ${b}?`;
-  const token = crypto.createHmac('sha256', CAPTCHA_SECRET).update(String(answer)).digest('hex');
-  return { question, token };
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 5; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  const token = crypto.createHmac('sha256', CAPTCHA_SECRET).update(code).digest('hex');
+  return { question: code, token };
 }
 
 function verifyCaptcha(answer, token) {
   if (!answer || !token) return false;
-  const expected = crypto.createHmac('sha256', CAPTCHA_SECRET).update(String(parseInt(answer))).digest('hex');
+  const expected = crypto.createHmac('sha256', CAPTCHA_SECRET).update(answer.toUpperCase()).digest('hex');
   if (expected.length !== token.length) return false;
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(token));
 }

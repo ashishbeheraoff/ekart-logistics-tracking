@@ -86,6 +86,10 @@
       <h3>Create New LR</h3>
       <div id="createAlert" class="alert"></div>
       <form id="createForm">
+        <div class="form-group">
+          <label>LR Number *</label>
+          <input type="text" id="cLrNumber" class="form-input" placeholder="e.g. EKT-2024-001 or your custom format" required>
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label>Sender Name</label>
@@ -325,6 +329,7 @@
       e.preventDefault();
       const alert = document.getElementById('createAlert');
       const body = {
+        lr_number: document.getElementById('cLrNumber').value.trim().toUpperCase(),
         sender_name: document.getElementById('cSender').value,
         sender_phone: document.getElementById('cSenderPhone').value,
         sender_address: document.getElementById('cSenderAddr').value,
