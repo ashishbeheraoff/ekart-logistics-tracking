@@ -168,19 +168,26 @@
             <label>Status</label>
             <select id="eStatus" class="form-input">
               <option value="Booked">Booked</option>
+              <option value="Picked Up">Picked Up</option>
               <option value="In Transit">In Transit</option>
               <option value="Out for Delivery">Out for Delivery</option>
               <option value="Delivered">Delivered</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Current Location</label>
-            <input type="text" id="eLocation" class="form-input">
+            <label>Location</label>
+            <input type="text" id="eLocation" class="form-input" placeholder="e.g. Mumbai, Surat, Delhi">
           </div>
         </div>
-        <div class="form-group">
-          <label>Update Description</label>
-          <input type="text" id="eDescription" class="form-input" placeholder="e.g. Shipment arrived at hub">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Update Description</label>
+            <input type="text" id="eDescription" class="form-input" placeholder="e.g. Shipment arrived at hub">
+          </div>
+          <div class="form-group">
+            <label>Date & Time</label>
+            <input type="datetime-local" id="eTimestamp" class="form-input">
+          </div>
         </div>
         <hr style="margin:16px 0;border:none;border-top:1px solid var(--gray-200)">
         <div class="form-row">
@@ -356,6 +363,14 @@
       } catch { showToast('Failed to create LR', 'error'); }
     });
 
+    function toDatetimeLocal(d) {
+      if (!d) return '';
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    }
+
     async function editLR(id) {
       const alert = document.getElementById('editAlert');
       alert.className = 'alert';
@@ -366,6 +381,7 @@
         document.getElementById('eStatus').value = c.status;
         document.getElementById('eLocation').value = c.current_location || '';
         document.getElementById('eDescription').value = '';
+        document.getElementById('eTimestamp').value = '';
         document.getElementById('eSender').value = c.sender_name || '';
         document.getElementById('eReceiver').value = c.receiver_name || '';
         document.getElementById('eOrigin').value = c.origin || '';
@@ -384,6 +400,7 @@
         status: document.getElementById('eStatus').value,
         current_location: document.getElementById('eLocation').value,
         description: document.getElementById('eDescription').value,
+        update_timestamp: document.getElementById('eTimestamp').value,
         sender_name: document.getElementById('eSender').value,
         receiver_name: document.getElementById('eReceiver').value,
         origin: document.getElementById('eOrigin').value,

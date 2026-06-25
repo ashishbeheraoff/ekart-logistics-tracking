@@ -162,8 +162,13 @@ exports.handler = async (event) => {
 
       if (updated && body.status && body.current_location) {
         const desc = body.description || `Shipment ${body.status.toLowerCase()} at ${body.current_location}`;
-        await db.run('INSERT INTO tracking_updates (lr_number, location, status, description) VALUES (?, ?, ?, ?)',
-          [updated.lr_number, body.current_location, body.status, desc]);
+        if (body.update_timestamp) {
+          await db.run('INSERT INTO tracking_updates (lr_number, location, status, description, timestamp) VALUES (?, ?, ?, ?, ?)',
+            [updated.lr_number, body.current_location, body.status, desc, body.update_timestamp]);
+        } else {
+          await db.run('INSERT INTO tracking_updates (lr_number, location, status, description) VALUES (?, ?, ?, ?)',
+            [updated.lr_number, body.current_location, body.status, desc]);
+        }
       }
 
       return json({ success: true, consignment: updated });
