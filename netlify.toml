@@ -5,6 +5,9 @@
 [functions]
   nodeVersion = "22"
 
+[functions.environment]
+  NODE_OPTIONS = "--experimental-sqlite"
+
 [[redirects]]
   from = "/api/tracking"
   to = "/.netlify/functions/tracking"
