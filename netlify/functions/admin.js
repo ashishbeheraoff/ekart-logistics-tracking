@@ -1,23 +1,7 @@
-const path = require('path');
-const fs = require('fs');
 const crypto = require('crypto');
+const { getDb } = require('./lib/db');
 
-const SCHEMA_PATH = path.join(__dirname, '../../data/schema.sql');
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'ekart-admin-secret-2024';
-
-let dbPromise = null;
-
-async function getDb() {
-  if (dbPromise) return dbPromise;
-  dbPromise = (async () => {
-    const { getDatabase } = require('@netlify/database');
-    const db = getDatabase();
-    const sql = fs.readFileSync(SCHEMA_PATH, 'utf8');
-    await db.sql.unsafe(sql);
-    return db;
-  })();
-  return dbPromise;
-}
 
 function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -58,7 +42,7 @@ function json(body, status = 200) {
   return {
     statusCode: status,
     headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify(body, (k, v) => typeof v === 'bigint' ? Number(v) : v),
+    body: JSON.stringify(body),
   };
 }
 
@@ -91,7 +75,7 @@ exports.handler = async (event) => {
       if (!body || !body.username || !body.password) {
         return json({ error: 'Username and password required' }, 400);
       }
-      const rows = await db.sql`SELECT password_hash FROM admin_users WHERE username = ${body.username}`;
+      const rows = await db.all('SELECT password_hash FROM admin_users WHERE username = ?', [body.username]);
       if (!rows || rows.length === 0 || rows[0].password_hash !== hashPassword(body.password)) {
         return json({ error: 'Invalid credentials' }, 401);
       }
@@ -103,24 +87,25 @@ exports.handler = async (event) => {
 
     if (event.httpMethod === 'GET' && segments[0] === 'lr') {
       if (segments[1]) {
-        const entries = await db.sql`SELECT * FROM lr_entries WHERE id = ${parseInt(segments[1])}`;
-        if (!entries || entries.length === 0) return json({ error: 'Not found' }, 404);
-        const updates = await db.sql`
-          SELECT * FROM tracking_updates WHERE lr_number = ${entries[0].lr_number} ORDER BY timestamp ASC
-        `;
-        return json({ consignment: entries[0], tracking_updates: updates });
+        const rows = await db.all('SELECT * FROM lr_entries WHERE id = ?', [parseInt(segments[1])]);
+        if (!rows || rows.length === 0) return json({ error: 'Not found' }, 404);
+        const updates = await db.all('SELECT * FROM tracking_updates WHERE lr_number = ? ORDER BY timestamp ASC', [rows[0].lr_number]);
+        return json({ consignment: rows[0], tracking_updates: updates });
       }
-      const entries = await db.sql`SELECT * FROM lr_entries ORDER BY created_at DESC`;
+      const entries = await db.all('SELECT * FROM lr_entries ORDER BY created_at DESC');
       return json({ consignments: entries });
     }
 
     if (event.httpMethod === 'GET' && segments[0] === 'stats') {
-      const total = (await db.sql`SELECT COUNT(*) as cnt FROM lr_entries`)[0].cnt;
-      const booked = (await db.sql`SELECT COUNT(*) as cnt FROM lr_entries WHERE status = 'Booked'`)[0].cnt;
-      const inTransit = (await db.sql`SELECT COUNT(*) as cnt FROM lr_entries WHERE status = 'In Transit'`)[0].cnt;
-      const outForDelivery = (await db.sql`SELECT COUNT(*) as cnt FROM lr_entries WHERE status = 'Out for Delivery'`)[0].cnt;
-      const delivered = (await db.sql`SELECT COUNT(*) as cnt FROM lr_entries WHERE status = 'Delivered'`)[0].cnt;
-      return json({ total: Number(total), booked: Number(booked), inTransit: Number(inTransit), outForDelivery: Number(outForDelivery), delivered: Number(delivered) });
+      const total = await db.get('SELECT COUNT(*) as cnt FROM lr_entries');
+      const booked = await db.get("SELECT COUNT(*) as cnt FROM lr_entries WHERE status = 'Booked'");
+      const inTransit = await db.get("SELECT COUNT(*) as cnt FROM lr_entries WHERE status = 'In Transit'");
+      const outForDelivery = await db.get("SELECT COUNT(*) as cnt FROM lr_entries WHERE status = 'Out for Delivery'");
+      const delivered = await db.get("SELECT COUNT(*) as cnt FROM lr_entries WHERE status = 'Delivered'");
+      return json({
+        total: Number(total.cnt), booked: Number(booked.cnt), inTransit: Number(inTransit.cnt),
+        outForDelivery: Number(outForDelivery.cnt), delivered: Number(delivered.cnt),
+      });
     }
 
     if (event.httpMethod === 'POST' && segments[0] === 'lr' && !segments[1]) {
@@ -128,23 +113,22 @@ exports.handler = async (event) => {
       if (!body || !body.origin || !body.destination) {
         return json({ error: 'Origin and destination are required' }, 400);
       }
-      const countResult = await db.sql`SELECT COUNT(*) as cnt FROM lr_entries`;
-      const count = Number(countResult[0].cnt) + 1;
+      const countResult = await db.get('SELECT COUNT(*) as cnt FROM lr_entries');
+      const count = Number(countResult.cnt) + 1;
       const lr_number = `EKT-${new Date().getFullYear()}-${String(count).padStart(3, '0')}`;
 
-      const [newEntry] = await db.sql`
-        INSERT INTO lr_entries 
-          (lr_number, sender_name, sender_address, sender_phone, receiver_name, receiver_address, receiver_phone, origin, destination, package_desc, weight, status, current_location, estimated_delivery)
-        VALUES 
-          (${lr_number}, ${body.sender_name || ''}, ${body.sender_address || ''}, ${body.sender_phone || ''}, ${body.receiver_name || ''}, ${body.receiver_address || ''}, ${body.receiver_phone || ''}, ${body.origin}, ${body.destination}, ${body.package_desc || ''}, ${body.weight || ''}, ${body.status || 'Booked'}, ${body.current_location || body.origin}, ${body.estimated_delivery || ''})
-        RETURNING *
-      `;
+      await db.run(`INSERT INTO lr_entries 
+        (lr_number, sender_name, sender_address, sender_phone, receiver_name, receiver_address, receiver_phone, origin, destination, package_desc, weight, status, current_location, estimated_delivery)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [lr_number, body.sender_name || '', body.sender_address || '', body.sender_phone || '',
+         body.receiver_name || '', body.receiver_address || '', body.receiver_phone || '',
+         body.origin, body.destination, body.package_desc || '', body.weight || '',
+         body.status || 'Booked', body.current_location || body.origin, body.estimated_delivery || '']);
 
-      await db.sql`
-        INSERT INTO tracking_updates (lr_number, location, status, description)
-        VALUES (${lr_number}, ${body.origin}, 'Booked', ${`Shipment booked at ${body.origin}`})
-      `;
+      await db.run('INSERT INTO tracking_updates (lr_number, location, status, description) VALUES (?, ?, ?, ?)',
+        [lr_number, body.origin, 'Booked', `Shipment booked at ${body.origin}`]);
 
+      const newEntry = await db.get('SELECT * FROM lr_entries WHERE lr_number = ?', [lr_number]);
       return json({ success: true, consignment: newEntry }, 201);
     }
 
@@ -159,24 +143,21 @@ exports.handler = async (event) => {
 
       for (const f of updatable) {
         if (body[f] !== undefined) {
-          sets.push(`${f} = $${vals.length + 1}`);
+          sets.push(`${f} = ?`);
           vals.push(body[f]);
         }
       }
       if (sets.length === 0) return json({ error: 'No fields to update' }, 400);
 
-      sets.push('updated_at = CURRENT_TIMESTAMP');
       vals.push(id);
+      await db.run(`UPDATE lr_entries SET ${sets.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, vals);
 
-      const updateSql = `UPDATE lr_entries SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING *`;
-      const [updated] = await db.sql.unsafe(updateSql, vals);
+      const updated = await db.get('SELECT * FROM lr_entries WHERE id = ?', [id]);
 
       if (updated && body.status && body.current_location) {
         const desc = body.description || `Shipment ${body.status.toLowerCase()} at ${body.current_location}`;
-        await db.sql`
-          INSERT INTO tracking_updates (lr_number, location, status, description)
-          VALUES (${updated.lr_number}, ${body.current_location}, ${body.status}, ${desc})
-        `;
+        await db.run('INSERT INTO tracking_updates (lr_number, location, status, description) VALUES (?, ?, ?, ?)',
+          [updated.lr_number, body.current_location, body.status, desc]);
       }
 
       return json({ success: true, consignment: updated });
@@ -184,10 +165,10 @@ exports.handler = async (event) => {
 
     if (event.httpMethod === 'DELETE' && segments[0] === 'lr' && segments[1]) {
       const id = parseInt(segments[1]);
-      const entries = await db.sql`SELECT lr_number FROM lr_entries WHERE id = ${id}`;
-      if (entries && entries.length > 0) {
-        await db.sql`DELETE FROM tracking_updates WHERE lr_number = ${entries[0].lr_number}`;
-        await db.sql`DELETE FROM lr_entries WHERE id = ${id}`;
+      const entry = await db.get('SELECT lr_number FROM lr_entries WHERE id = ?', [id]);
+      if (entry) {
+        await db.run('DELETE FROM tracking_updates WHERE lr_number = ?', [entry.lr_number]);
+        await db.run('DELETE FROM lr_entries WHERE id = ?', [id]);
       }
       return json({ success: true, message: 'Deleted successfully' });
     }

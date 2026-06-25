@@ -1,23 +1,7 @@
-const path = require('path');
-const fs = require('fs');
 const crypto = require('crypto');
+const { getDb } = require('./lib/db');
 
-const SCHEMA_PATH = path.join(__dirname, '../../data/schema.sql');
 const CAPTCHA_SECRET = process.env.CAPTCHA_SECRET || 'ekart-captcha-secret-2024';
-
-let dbPromise = null;
-
-async function getDb() {
-  if (dbPromise) return dbPromise;
-  dbPromise = (async () => {
-    const { getDatabase } = require('@netlify/database');
-    const db = getDatabase();
-    const sql = fs.readFileSync(SCHEMA_PATH, 'utf8');
-    await db.sql.unsafe(sql);
-    return db;
-  })();
-  return dbPromise;
-}
 
 function generateCaptcha() {
   const a = Math.floor(Math.random() * 20) + 5;
@@ -48,7 +32,7 @@ function json(body, status = 200) {
   return {
     statusCode: status,
     headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify(body, (k, v) => typeof v === 'bigint' ? Number(v) : v),
+    body: JSON.stringify(body),
   };
 }
 
@@ -77,14 +61,12 @@ exports.handler = async (event) => {
         return json({ error: 'Invalid captcha answer. Please try again.' }, 400);
       }
 
-      const entries = await db.sql`SELECT * FROM lr_entries WHERE lr_number = ${lr_number.toUpperCase()}`;
+      const entries = await db.all('SELECT * FROM lr_entries WHERE lr_number = ?', [lr_number.toUpperCase()]);
       if (!entries || entries.length === 0) {
         return json({ error: 'No shipment found with LR Number: ' + lr_number.toUpperCase() }, 404);
       }
 
-      const updates = await db.sql`
-        SELECT * FROM tracking_updates WHERE lr_number = ${lr_number.toUpperCase()} ORDER BY timestamp ASC
-      `;
+      const updates = await db.all('SELECT * FROM tracking_updates WHERE lr_number = ? ORDER BY timestamp ASC', [lr_number.toUpperCase()]);
 
       return json({ success: true, consignment: entries[0], tracking_updates: updates });
     }
